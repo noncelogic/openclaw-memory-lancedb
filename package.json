@@ -1,0 +1,46 @@
+{
+  "name": "@noncelogic/openclaw-memory-lancedb",
+  "version": "0.1.0",
+  "description": "LanceDB-backed long-term memory plugin for OpenClaw with auto-recall and auto-capture",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noncelogic/openclaw-memory-lancedb.git"
+  },
+  "bugs": "https://github.com/noncelogic/openclaw-memory-lancedb/issues",
+  "homepage": "https://github.com/noncelogic/openclaw-memory-lancedb#readme",
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "memory",
+    "lancedb",
+    "vector-search",
+    "long-term-memory",
+    "ai-assistant",
+    "embeddings"
+  ],
+  "files": [
+    "index.ts",
+    "config.ts",
+    "openclaw.plugin.json",
+    "LICENSE",
+    "README.md"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.26.2",
+    "@sinclair/typebox": "0.34.48",
+    "openai": "^6.22.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.26"
+  },
+  "devDependencies": {
+    "openclaw": "2026.2.20"
+  }
+}
