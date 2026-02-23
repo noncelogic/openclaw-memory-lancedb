@@ -6,7 +6,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/noncelogic/openclaw-memory-lancedb.git"
+    "url": "git+https://github.com/noncelogic/openclaw-memory-lancedb.git"
   },
   "bugs": "https://github.com/noncelogic/openclaw-memory-lancedb/issues",
   "homepage": "https://github.com/noncelogic/openclaw-memory-lancedb#readme",
