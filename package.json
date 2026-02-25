@@ -33,6 +33,7 @@
     ]
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@lancedb/lancedb": "^0.26.2",
     "@sinclair/typebox": "0.34.48",
     "openai": "^6.22.0"
@@ -41,6 +42,6 @@
     "openclaw": ">=2026.1.26"
   },
   "devDependencies": {
-    "openclaw": "2026.2.20"
+    "openclaw": "2026.2.24"
   }
 }

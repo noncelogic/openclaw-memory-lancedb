@@ -2,9 +2,11 @@ import fs from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+export type EmbeddingProvider = "openai" | "gemini";
+
 export type MemoryConfig = {
   embedding: {
-    provider: "openai";
+    provider: EmbeddingProvider;
     model?: string;
     apiKey: string;
   };
@@ -17,7 +19,11 @@ export type MemoryConfig = {
 export const MEMORY_CATEGORIES = ["preference", "fact", "decision", "entity", "other"] as const;
 export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
 
-const DEFAULT_MODEL = "text-embedding-3-small";
+const DEFAULT_PROVIDER: EmbeddingProvider = "openai";
+const DEFAULT_MODEL_BY_PROVIDER: Record<EmbeddingProvider, string> = {
+  openai: "text-embedding-3-small",
+  gemini: "text-embedding-004",
+};
 export const DEFAULT_CAPTURE_MAX_CHARS = 500;
 const LEGACY_STATE_DIRS: string[] = [];
 
@@ -48,9 +54,15 @@ function resolveDefaultDbPath(): string {
 
 const DEFAULT_DB_PATH = resolveDefaultDbPath();
 
-const EMBEDDING_DIMENSIONS: Record<string, number> = {
-  "text-embedding-3-small": 1536,
-  "text-embedding-3-large": 3072,
+const EMBEDDING_DIMENSIONS: Record<EmbeddingProvider, Record<string, number>> = {
+  openai: {
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+  },
+  gemini: {
+    "text-embedding-004": 768,
+    "embedding-001": 768,
+  },
 };
 
 function assertAllowedKeys(value: Record<string, unknown>, allowed: string[], label: string) {
@@ -61,10 +73,15 @@ function assertAllowedKeys(value: Record<string, unknown>, allowed: string[], la
   throw new Error(`${label} has unknown keys: ${unknown.join(", ")}`);
 }
 
-export function vectorDimsForModel(model: string): number {
-  const dims = EMBEDDING_DIMENSIONS[model];
+export function vectorDimsForModel(provider: EmbeddingProvider, model: string): number {
+  const providerModels = EMBEDDING_DIMENSIONS[provider];
+  if (!providerModels) {
+    throw new Error(`Unsupported embedding provider: ${provider}`);
+  }
+
+  const dims = providerModels[model];
   if (!dims) {
-    throw new Error(`Unsupported embedding model: ${model}`);
+    throw new Error(`Unsupported ${provider} embedding model: ${model}`);
   }
   return dims;
 }
@@ -79,9 +96,10 @@ function resolveEnvVars(value: string): string {
   });
 }
 
-function resolveEmbeddingModel(embedding: Record<string, unknown>): string {
-  const model = typeof embedding.model === "string" ? embedding.model : DEFAULT_MODEL;
-  vectorDimsForModel(model);
+function resolveEmbeddingModel(provider: EmbeddingProvider, embedding: Record<string, unknown>): string {
+  const model =
+    typeof embedding.model === "string" ? embedding.model : DEFAULT_MODEL_BY_PROVIDER[provider];
+  vectorDimsForModel(provider, model);
   return model;
 }
 
@@ -101,9 +119,15 @@ export const memoryConfigSchema = {
     if (!embedding || typeof embedding.apiKey !== "string") {
       throw new Error("embedding.apiKey is required");
     }
-    assertAllowedKeys(embedding, ["apiKey", "model"], "embedding config");
+    assertAllowedKeys(embedding, ["provider", "apiKey", "model"], "embedding config");
 
-    const model = resolveEmbeddingModel(embedding);
+    const provider = embedding.provider;
+    if (provider !== undefined && provider !== "openai" && provider !== "gemini") {
+      throw new Error(`Unsupported embedding provider: ${String(provider)}`);
+    }
+
+    const resolvedProvider = (provider as EmbeddingProvider | undefined) ?? DEFAULT_PROVIDER;
+    const model = resolveEmbeddingModel(resolvedProvider, embedding);
 
     const captureMaxChars =
       typeof cfg.captureMaxChars === "number" ? Math.floor(cfg.captureMaxChars) : undefined;
@@ -116,7 +140,7 @@ export const memoryConfigSchema = {
 
     return {
       embedding: {
-        provider: "openai",
+        provider: resolvedProvider,
         model,
         apiKey: resolveEnvVars(embedding.apiKey),
       },
@@ -127,16 +151,21 @@ export const memoryConfigSchema = {
     };
   },
   uiHints: {
+    "embedding.provider": {
+      label: "Embedding Provider",
+      placeholder: DEFAULT_PROVIDER,
+      help: "Embedding provider to use: openai or gemini",
+    },
     "embedding.apiKey": {
-      label: "OpenAI API Key",
+      label: "Embedding API Key",
       sensitive: true,
-      placeholder: "sk-proj-...",
-      help: "API key for OpenAI embeddings (or use ${OPENAI_API_KEY})",
+      placeholder: "${OPENAI_API_KEY} or ${GEMINI_API_KEY}",
+      help: "API key for the selected embedding provider",
     },
     "embedding.model": {
       label: "Embedding Model",
-      placeholder: DEFAULT_MODEL,
-      help: "OpenAI embedding model to use",
+      placeholder: DEFAULT_MODEL_BY_PROVIDER.openai,
+      help: "Model to use (OpenAI: text-embedding-3-small/large, Gemini: text-embedding-004/embedding-001)",
     },
     dbPath: {
       label: "Database Path",

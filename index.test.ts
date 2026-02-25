@@ -82,6 +82,49 @@ describe("memory plugin e2e", () => {
     delete process.env.TEST_MEMORY_API_KEY;
   });
 
+  test("config schema parses valid Gemini config", async () => {
+    const { default: memoryPlugin } = await import("./index.js");
+
+    const config = memoryPlugin.configSchema?.parse?.({
+      embedding: {
+        provider: "gemini",
+        apiKey: "gemini-test-key",
+        model: "text-embedding-004",
+      },
+      dbPath,
+    });
+
+    expect(config?.embedding?.provider).toBe("gemini");
+    expect(config?.embedding?.model).toBe("text-embedding-004");
+  });
+
+  test("config schema defaults provider to openai", async () => {
+    const { default: memoryPlugin } = await import("./index.js");
+
+    const config = memoryPlugin.configSchema?.parse?.({
+      embedding: {
+        apiKey: OPENAI_API_KEY,
+      },
+      dbPath,
+    });
+
+    expect(config?.embedding?.provider).toBe("openai");
+  });
+
+  test("config schema rejects unknown provider", async () => {
+    const { default: memoryPlugin } = await import("./index.js");
+
+    expect(() => {
+      memoryPlugin.configSchema?.parse?.({
+        embedding: {
+          provider: "unknown",
+          apiKey: OPENAI_API_KEY,
+        },
+        dbPath,
+      });
+    }).toThrow("Unsupported embedding provider: unknown");
+  });
+
   test("config schema rejects missing apiKey", async () => {
     const { default: memoryPlugin } = await import("./index.js");
 
