@@ -2,13 +2,14 @@
  * OpenClaw Memory (LanceDB) Plugin
  *
  * Long-term memory with vector search for AI conversations.
- * Uses LanceDB for storage and OpenAI for embeddings.
+ * Uses LanceDB for storage and OpenAI/Gemini for embeddings.
  * Provides seamless auto-recall and auto-capture via lifecycle hooks.
  */
 
 import { randomUUID } from "node:crypto";
 import type * as LanceDB from "@lancedb/lancedb";
 import { Type } from "@sinclair/typebox";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import {
@@ -17,6 +18,7 @@ import {
   type MemoryCategory,
   memoryConfigSchema,
   vectorDimsForModel,
+  type MemoryConfig,
 } from "./config.js";
 
 // ============================================================================
@@ -157,10 +159,14 @@ class MemoryDB {
 }
 
 // ============================================================================
-// OpenAI Embeddings
+// Embedding Providers
 // ============================================================================
 
-class Embeddings {
+interface EmbeddingProvider {
+  embed(text: string): Promise<number[]>;
+}
+
+class OpenAIEmbeddings implements EmbeddingProvider {
   private client: OpenAI;
 
   constructor(
@@ -177,6 +183,30 @@ class Embeddings {
     });
     return response.data[0].embedding;
   }
+}
+
+class GeminiEmbeddings implements EmbeddingProvider {
+  private client: GoogleGenerativeAI;
+
+  constructor(
+    apiKey: string,
+    private model: string,
+  ) {
+    this.client = new GoogleGenerativeAI(apiKey);
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const model = this.client.getGenerativeModel({ model: this.model });
+    const response = await model.embedContent(text);
+    return response.embedding.values;
+  }
+}
+
+function createEmbeddingProvider(config: MemoryConfig): EmbeddingProvider {
+  if (config.embedding.provider === "gemini") {
+    return new GeminiEmbeddings(config.embedding.apiKey, config.embedding.model!);
+  }
+  return new OpenAIEmbeddings(config.embedding.apiKey, config.embedding.model!);
 }
 
 // ============================================================================
@@ -292,9 +322,9 @@ const memoryPlugin = {
   register(api: OpenClawPluginApi) {
     const cfg = memoryConfigSchema.parse(api.pluginConfig);
     const resolvedDbPath = api.resolvePath(cfg.dbPath!);
-    const vectorDim = vectorDimsForModel(cfg.embedding.model ?? "text-embedding-3-small");
+    const vectorDim = vectorDimsForModel(cfg.embedding.provider, cfg.embedding.model!);
     const db = new MemoryDB(resolvedDbPath, vectorDim);
-    const embeddings = new Embeddings(cfg.embedding.apiKey, cfg.embedding.model!);
+    const embeddings = createEmbeddingProvider(cfg);
 
     api.logger.info(`memory-lancedb: plugin registered (db: ${resolvedDbPath}, lazy init)`);
 

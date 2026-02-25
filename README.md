@@ -1,6 +1,6 @@
 # OpenClaw Memory (LanceDB)
 
-Long-term memory plugin for [OpenClaw](https://github.com/openclaw/openclaw) using LanceDB for vector storage and OpenAI for embeddings. Gives your AI assistant persistent memory across conversations with automatic recall and capture.
+Long-term memory plugin for [OpenClaw](https://github.com/openclaw/openclaw) using LanceDB for vector storage and OpenAI or Gemini embeddings. Gives your AI assistant persistent memory across conversations with automatic recall and capture.
 
 ## Features
 
@@ -33,7 +33,9 @@ Add to your `~/.openclaw/openclaw.json`:
         "enabled": true,
         "config": {
           "embedding": {
-            "apiKey": "${OPENAI_API_KEY}"
+            "provider": "openai",
+            "apiKey": "${OPENAI_API_KEY}",
+            "model": "text-embedding-3-small"
           },
           "autoRecall": true,
           "autoCapture": true
@@ -46,12 +48,36 @@ Add to your `~/.openclaw/openclaw.json`:
 
 Set `plugins.slots.memory` to `"memory-lancedb"` to switch from the default `memory-core` plugin. Only one memory plugin can be active at a time.
 
+### Gemini Configuration Example
+
+```json
+{
+  "plugins": {
+    "slots": { "memory": "memory-lancedb" },
+    "entries": {
+      "memory-lancedb": {
+        "config": {
+          "embedding": {
+            "provider": "gemini",
+            "apiKey": "${GEMINI_API_KEY}",
+            "model": "text-embedding-004"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Gemini embeddings are a great low-cost option and come with a generous free tier for many workloads.
+
 ### Config Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `embedding.apiKey` | string | *required* | OpenAI API key (supports `${ENV_VAR}` syntax) |
-| `embedding.model` | string | `text-embedding-3-small` | Embedding model (`text-embedding-3-small` or `text-embedding-3-large`) |
+| `embedding.provider` | string | `openai` | Embedding provider (`openai` or `gemini`) |
+| `embedding.apiKey` | string | *required* | Provider API key (supports `${ENV_VAR}` syntax) |
+| `embedding.model` | string | provider-dependent | OpenAI: `text-embedding-3-small`, `text-embedding-3-large`. Gemini: `text-embedding-004`, `embedding-001` |
 | `dbPath` | string | `~/.openclaw/memory/lancedb` | LanceDB database path |
 | `autoRecall` | boolean | `true` | Inject relevant memories before each response |
 | `autoCapture` | boolean | `false` | Auto-store important user messages |
@@ -63,7 +89,7 @@ Set `plugins.slots.memory` to `"memory-lancedb"` to switch from the default `mem
 
 Before every agent response, the plugin:
 
-1. Embeds the user's message using OpenAI
+1. Embeds the user's message using the configured embedding provider
 2. Searches LanceDB for the top 3 most relevant memories (minimum 0.3 similarity)
 3. Injects them into the system prompt as `<relevant-memories>` context marked as untrusted
 
@@ -126,7 +152,7 @@ Memories are injected as untrusted historical context:
 
 ## Limitations
 
-- **OpenAI-only embeddings** -- requires an OpenAI API key for `text-embedding-3-small` or `text-embedding-3-large`
+- **Embedding providers** -- supports OpenAI (`text-embedding-3-small`, `text-embedding-3-large`) and Gemini (`text-embedding-004`, `embedding-001`)
 - **LanceDB native binaries** -- LanceDB requires native binaries that may not be available on all platforms (notably macOS ARM can have issues)
 
 ## Testing
