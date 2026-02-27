@@ -231,7 +231,25 @@ function resolveCodexAccessToken(config: MemoryConfig): string {
     return direct;
   }
 
-  const fallbackKeys = ["accessToken", "token", "id_token"];
+  const profiles = obj.profiles;
+  if (profiles && typeof profiles === "object") {
+    const pObj = profiles as Record<string, unknown>;
+    const preferred = pObj["openai-codex:default"] as Record<string, unknown> | undefined;
+    const preferredAccess = preferred?.access;
+    if (typeof preferredAccess === "string" && preferredAccess.length > 0) {
+      return preferredAccess;
+    }
+    for (const v of Object.values(pObj)) {
+      if (v && typeof v === "object") {
+        const access = (v as Record<string, unknown>).access;
+        if (typeof access === "string" && access.length > 0) {
+          return access;
+        }
+      }
+    }
+  }
+
+  const fallbackKeys = ["accessToken", "token", "id_token", "access"];
   for (const key of fallbackKeys) {
     const value = obj[key];
     if (typeof value === "string" && value.length > 0) {
@@ -240,7 +258,7 @@ function resolveCodexAccessToken(config: MemoryConfig): string {
   }
 
   throw new Error(
-    "Codex auth file does not contain an access token (expected access_token/accessToken/token/id_token): " + authPath,
+    "Codex auth file does not contain an access token (expected Codex auth.json or OpenClaw auth-profiles format): " + authPath,
   );
 }
 
