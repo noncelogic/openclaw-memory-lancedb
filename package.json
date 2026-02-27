@@ -1,5 +1,5 @@
 {
-  "name": "@noncelogic/openclaw-memory-lancedb",
+  "name": "@noncelogic/memory-lancedb",
   "version": "0.1.0",
   "description": "LanceDB-backed long-term memory plugin for OpenClaw with auto-recall and auto-capture",
   "license": "MIT",

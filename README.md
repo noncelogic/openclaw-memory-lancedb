@@ -15,7 +15,7 @@ Long-term memory plugin for [OpenClaw](https://github.com/openclaw/openclaw) usi
 ## Installation
 
 ```sh
-openclaw plugins install @noncelogic/openclaw-memory-lancedb
+openclaw plugins install @noncelogic/memory-lancedb
 ```
 
 ## Configuration
