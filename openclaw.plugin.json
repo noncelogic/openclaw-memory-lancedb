@@ -3,10 +3,10 @@
   "kind": "memory",
   "uiHints": {
     "embedding.apiKey": {
-      "label": "OpenAI API Key",
+      "label": "Embedding API Key",
       "sensitive": true,
-      "placeholder": "sk-proj-...",
-      "help": "API key for OpenAI embeddings (or use ${OPENAI_API_KEY})"
+      "placeholder": "${OPENAI_API_KEY} or ${GEMINI_API_KEY}",
+      "help": "API key for apiKey mode (not required for openai+codexOAuth)"
     },
     "embedding.model": {
       "label": "Embedding Model",
@@ -31,6 +31,28 @@
       "help": "Maximum message length eligible for auto-capture",
       "advanced": true,
       "placeholder": "500"
+    },
+    "embedding.provider": {
+      "label": "Embedding Provider",
+      "placeholder": "openai",
+      "help": "Embedding provider to use: openai or gemini"
+    },
+    "embedding.authMode": {
+      "label": "OpenAI Auth Mode",
+      "placeholder": "apiKey",
+      "help": "For provider=openai: apiKey or codexOAuth"
+    },
+    "embedding.oauthToken": {
+      "label": "Codex OAuth Access Token",
+      "sensitive": true,
+      "placeholder": "${OPENAI_CODEX_OAUTH_TOKEN}",
+      "help": "Optional direct OAuth token for OpenAI Codex mode"
+    },
+    "embedding.codexAuthPath": {
+      "label": "Codex Auth JSON Path",
+      "placeholder": "~/.codex/auth.json",
+      "help": "Path to Codex CLI auth.json used when authMode=codexOAuth",
+      "advanced": true
     }
   },
   "configSchema": {
@@ -45,11 +67,30 @@
             "type": "string"
           },
           "model": {
+            "type": "string"
+          },
+          "provider": {
             "type": "string",
-            "enum": ["text-embedding-3-small", "text-embedding-3-large"]
+            "enum": [
+              "openai",
+              "gemini"
+            ]
+          },
+          "authMode": {
+            "type": "string",
+            "enum": [
+              "apiKey",
+              "codexOAuth"
+            ]
+          },
+          "oauthToken": {
+            "type": "string"
+          },
+          "codexAuthPath": {
+            "type": "string"
           }
         },
-        "required": ["apiKey"]
+        "required": []
       },
       "dbPath": {
         "type": "string"
@@ -66,6 +107,8 @@
         "maximum": 10000
       }
     },
-    "required": ["embedding"]
+    "required": [
+      "embedding"
+    ]
   }
 }

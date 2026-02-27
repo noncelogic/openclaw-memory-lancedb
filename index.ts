@@ -7,6 +7,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import type * as LanceDB from "@lancedb/lancedb";
 import { Type } from "@sinclair/typebox";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -170,10 +171,10 @@ class OpenAIEmbeddings implements EmbeddingProvider {
   private client: OpenAI;
 
   constructor(
-    apiKey: string,
+    authToken: string,
     private model: string,
   ) {
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ apiKey: authToken });
   }
 
   async embed(text: string): Promise<number[]> {
@@ -202,11 +203,59 @@ class GeminiEmbeddings implements EmbeddingProvider {
   }
 }
 
+function resolveCodexAccessToken(config: MemoryConfig): string {
+  const explicit = config.embedding.oauthToken;
+  if (explicit) {
+    return explicit;
+  }
+
+  const authPath = config.embedding.codexAuthPath;
+  if (!authPath) {
+    throw new Error("OpenAI Codex OAuth enabled but no auth path is configured");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(authPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to read Codex auth file at " + authPath + ": " + String(err));
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Invalid Codex auth file at " + authPath);
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  const direct = obj.access_token;
+  if (typeof direct === "string" && direct.length > 0) {
+    return direct;
+  }
+
+  const fallbackKeys = ["accessToken", "token", "id_token"];
+  for (const key of fallbackKeys) {
+    const value = obj[key];
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  throw new Error(
+    "Codex auth file does not contain an access token (expected access_token/accessToken/token/id_token): " + authPath,
+  );
+}
+
 function createEmbeddingProvider(config: MemoryConfig): EmbeddingProvider {
   if (config.embedding.provider === "gemini") {
-    return new GeminiEmbeddings(config.embedding.apiKey, config.embedding.model!);
+    return new GeminiEmbeddings(config.embedding.apiKey!, config.embedding.model!);
   }
-  return new OpenAIEmbeddings(config.embedding.apiKey, config.embedding.model!);
+
+  const authMode = config.embedding.authMode ?? "apiKey";
+  const token = authMode === "codexOAuth" ? resolveCodexAccessToken(config) : config.embedding.apiKey;
+  if (!token) {
+    throw new Error("OpenAI embeddings token is missing");
+  }
+
+  return new OpenAIEmbeddings(token, config.embedding.model!);
 }
 
 // ============================================================================

@@ -3,12 +3,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 export type EmbeddingProvider = "openai" | "gemini";
+export type OpenAIAuthMode = "apiKey" | "codexOAuth";
 
 export type MemoryConfig = {
   embedding: {
     provider: EmbeddingProvider;
     model?: string;
-    apiKey: string;
+    apiKey?: string;
+    authMode?: OpenAIAuthMode;
+    oauthToken?: string;
+    codexAuthPath?: string;
   };
   dbPath?: string;
   autoCapture?: boolean;
@@ -116,10 +120,14 @@ export const memoryConfigSchema = {
     );
 
     const embedding = cfg.embedding as Record<string, unknown> | undefined;
-    if (!embedding || typeof embedding.apiKey !== "string") {
-      throw new Error("embedding.apiKey is required");
+    if (!embedding) {
+      throw new Error("embedding config required");
     }
-    assertAllowedKeys(embedding, ["provider", "apiKey", "model"], "embedding config");
+    assertAllowedKeys(
+      embedding,
+      ["provider", "apiKey", "model", "authMode", "oauthToken", "codexAuthPath"],
+      "embedding config",
+    );
 
     const provider = embedding.provider;
     if (provider !== undefined && provider !== "openai" && provider !== "gemini") {
@@ -128,6 +136,27 @@ export const memoryConfigSchema = {
 
     const resolvedProvider = (provider as EmbeddingProvider | undefined) ?? DEFAULT_PROVIDER;
     const model = resolveEmbeddingModel(resolvedProvider, embedding);
+
+    const authMode =
+      embedding.authMode === "codexOAuth" || embedding.authMode === "apiKey"
+        ? embedding.authMode
+        : "apiKey";
+
+    const apiKey = typeof embedding.apiKey === "string" ? resolveEnvVars(embedding.apiKey) : undefined;
+    const oauthToken =
+      typeof embedding.oauthToken === "string" ? resolveEnvVars(embedding.oauthToken) : undefined;
+    const codexAuthPath =
+      typeof embedding.codexAuthPath === "string"
+        ? resolveEnvVars(embedding.codexAuthPath)
+        : join(homedir(), ".codex", "auth.json");
+
+    if (resolvedProvider === "gemini" && !apiKey) {
+      throw new Error("embedding.apiKey is required for provider=gemini");
+    }
+
+    if (resolvedProvider === "openai" && authMode === "apiKey" && !apiKey) {
+      throw new Error("embedding.apiKey is required for provider=openai when authMode=apiKey");
+    }
 
     const captureMaxChars =
       typeof cfg.captureMaxChars === "number" ? Math.floor(cfg.captureMaxChars) : undefined;
@@ -142,7 +171,10 @@ export const memoryConfigSchema = {
       embedding: {
         provider: resolvedProvider,
         model,
-        apiKey: resolveEnvVars(embedding.apiKey),
+        apiKey,
+        authMode,
+        oauthToken,
+        codexAuthPath,
       },
       dbPath: typeof cfg.dbPath === "string" ? cfg.dbPath : DEFAULT_DB_PATH,
       autoCapture: cfg.autoCapture === true,
@@ -156,11 +188,28 @@ export const memoryConfigSchema = {
       placeholder: DEFAULT_PROVIDER,
       help: "Embedding provider to use: openai or gemini",
     },
+    "embedding.authMode": {
+      label: "OpenAI Auth Mode",
+      placeholder: "apiKey",
+      help: "For provider=openai: apiKey or codexOAuth",
+    },
     "embedding.apiKey": {
       label: "Embedding API Key",
       sensitive: true,
       placeholder: "${OPENAI_API_KEY} or ${GEMINI_API_KEY}",
-      help: "API key for the selected embedding provider",
+      help: "API key for apiKey mode (not required for openai+codexOAuth)",
+    },
+    "embedding.oauthToken": {
+      label: "Codex OAuth Access Token",
+      sensitive: true,
+      placeholder: "${OPENAI_CODEX_OAUTH_TOKEN}",
+      help: "Optional direct OAuth access token for OpenAI Codex mode",
+    },
+    "embedding.codexAuthPath": {
+      label: "Codex Auth JSON Path",
+      placeholder: "~/.codex/auth.json",
+      help: "Path to Codex CLI auth.json used when authMode=codexOAuth",
+      advanced: true,
     },
     "embedding.model": {
       label: "Embedding Model",

@@ -34,6 +34,7 @@ Add to your `~/.openclaw/openclaw.json`:
         "config": {
           "embedding": {
             "provider": "openai",
+            "authMode": "apiKey",
             "apiKey": "${OPENAI_API_KEY}",
             "model": "text-embedding-3-small"
           },
@@ -47,6 +48,32 @@ Add to your `~/.openclaw/openclaw.json`:
 ```
 
 Set `plugins.slots.memory` to `"memory-lancedb"` to switch from the default `memory-core` plugin. Only one memory plugin can be active at a time.
+
+### Codex OAuth Configuration Example
+
+Use this when you authenticate with OpenAI Codex OAuth (no API key required):
+
+```json
+{
+  "plugins": {
+    "slots": { "memory": "memory-lancedb" },
+    "entries": {
+      "memory-lancedb": {
+        "config": {
+          "embedding": {
+            "provider": "openai",
+            "authMode": "codexOAuth",
+            "codexAuthPath": "~/.codex/auth.json",
+            "model": "text-embedding-3-small"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Optional: set `embedding.oauthToken` directly (for example `${OPENAI_CODEX_OAUTH_TOKEN}`) instead of reading `~/.codex/auth.json`.
 
 ### Gemini Configuration Example
 
@@ -76,7 +103,10 @@ Gemini embeddings are a great low-cost option and come with a generous free tier
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `embedding.provider` | string | `openai` | Embedding provider (`openai` or `gemini`) |
-| `embedding.apiKey` | string | *required* | Provider API key (supports `${ENV_VAR}` syntax) |
+| `embedding.authMode` | string | `apiKey` | OpenAI auth mode: `apiKey` or `codexOAuth` |
+| `embedding.oauthToken` | string | optional | Direct Codex OAuth token (supports `${ENV_VAR}` syntax) |
+| `embedding.codexAuthPath` | string | `~/.codex/auth.json` | Path to Codex CLI auth file when using `codexOAuth` |
+| `embedding.apiKey` | string | provider-dependent | Required for `openai` + `authMode=apiKey` and `gemini` |
 | `embedding.model` | string | provider-dependent | OpenAI: `text-embedding-3-small`, `text-embedding-3-large`. Gemini: `text-embedding-004`, `embedding-001` |
 | `dbPath` | string | `~/.openclaw/memory/lancedb` | LanceDB database path |
 | `autoRecall` | boolean | `true` | Inject relevant memories before each response |
@@ -152,7 +182,7 @@ Memories are injected as untrusted historical context:
 
 ## Limitations
 
-- **Embedding providers** -- supports OpenAI (`text-embedding-3-small`, `text-embedding-3-large`) and Gemini (`text-embedding-004`, `embedding-001`)
+- **Embedding providers** -- supports OpenAI API key mode, OpenAI Codex OAuth mode, and Gemini
 - **LanceDB native binaries** -- LanceDB requires native binaries that may not be available on all platforms (notably macOS ARM can have issues)
 
 ## Testing
