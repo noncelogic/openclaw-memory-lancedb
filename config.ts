@@ -100,6 +100,18 @@ function resolveEnvVars(value: string): string {
   });
 }
 
+
+
+function expandHomePath(input: string): string {
+  if (input === "~") {
+    return homedir();
+  }
+  if (input.startsWith("~/")) {
+    return join(homedir(), input.slice(2));
+  }
+  return input;
+}
+
 function resolveEmbeddingModel(provider: EmbeddingProvider, embedding: Record<string, unknown>): string {
   const model =
     typeof embedding.model === "string" ? embedding.model : DEFAULT_MODEL_BY_PROVIDER[provider];
@@ -147,7 +159,7 @@ export const memoryConfigSchema = {
       typeof embedding.oauthToken === "string" ? resolveEnvVars(embedding.oauthToken) : undefined;
     const codexAuthPath =
       typeof embedding.codexAuthPath === "string"
-        ? resolveEnvVars(embedding.codexAuthPath)
+        ? expandHomePath(resolveEnvVars(embedding.codexAuthPath))
         : join(homedir(), ".codex", "auth.json");
 
     if (resolvedProvider === "gemini" && !apiKey) {
@@ -176,7 +188,10 @@ export const memoryConfigSchema = {
         oauthToken,
         codexAuthPath,
       },
-      dbPath: typeof cfg.dbPath === "string" ? cfg.dbPath : DEFAULT_DB_PATH,
+      dbPath:
+        typeof cfg.dbPath === "string"
+          ? expandHomePath(resolveEnvVars(cfg.dbPath))
+          : DEFAULT_DB_PATH,
       autoCapture: cfg.autoCapture === true,
       autoRecall: cfg.autoRecall !== false,
       captureMaxChars: captureMaxChars ?? DEFAULT_CAPTURE_MAX_CHARS,

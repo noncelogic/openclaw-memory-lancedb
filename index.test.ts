@@ -136,6 +136,40 @@ describe("memory plugin e2e", () => {
     }).toThrow("embedding.apiKey is required");
   });
 
+
+  test("config schema accepts codexOAuth without apiKey", async () => {
+    const { default: memoryPlugin } = await import("./index.js");
+
+    const config = memoryPlugin.configSchema?.parse?.({
+      embedding: {
+        provider: "openai",
+        authMode: "codexOAuth",
+      },
+      dbPath,
+    });
+
+    expect(config?.embedding?.provider).toBe("openai");
+    expect(config?.embedding?.authMode).toBe("codexOAuth");
+    expect(config?.embedding?.apiKey).toBeUndefined();
+    expect(config?.embedding?.codexAuthPath).toContain('.codex/auth.json');
+  });
+
+  test("config schema expands tilde for codexAuthPath and dbPath", async () => {
+    const { default: memoryPlugin } = await import("./index.js");
+
+    const config = memoryPlugin.configSchema?.parse?.({
+      embedding: {
+        provider: "openai",
+        authMode: "codexOAuth",
+        codexAuthPath: "~/.codex/auth.json",
+      },
+      dbPath: "~/.openclaw/memory/lancedb-test",
+    });
+
+    expect(config?.embedding?.codexAuthPath?.startsWith(os.homedir())).toBe(true);
+    expect(config?.dbPath?.startsWith(os.homedir())).toBe(true);
+  });
+
   test("config schema validates captureMaxChars range", async () => {
     const { default: memoryPlugin } = await import("./index.js");
 
