@@ -203,6 +203,88 @@ class GeminiEmbeddings implements EmbeddingProvider {
   }
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function pickTokenFromRecord(record: Record<string, unknown>): string | undefined {
+  const paths: string[][] = [
+    ["access_token"],
+    ["accessToken"],
+    ["token"],
+    ["id_token"],
+    ["idToken"],
+    ["access"],
+    ["tokens", "access_token"],
+    ["tokens", "accessToken"],
+    ["auth", "access_token"],
+    ["auth", "accessToken"],
+    ["credentials", "access_token"],
+    ["credentials", "accessToken"],
+    ["credentials", "openai", "access_token"],
+    ["credentials", "openai", "accessToken"],
+  ];
+
+  for (const path of paths) {
+    let cursor: unknown = record;
+    for (const segment of path) {
+      if (!cursor || typeof cursor !== "object") {
+        cursor = undefined;
+        break;
+      }
+      cursor = (cursor as Record<string, unknown>)[segment];
+    }
+    const found = nonEmptyString(cursor);
+    if (found) {
+      return found;
+    }
+  }
+
+  return undefined;
+}
+
+export function extractCodexAccessToken(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  const obj = payload as Record<string, unknown>;
+  const direct = pickTokenFromRecord(obj);
+  if (direct) {
+    return direct;
+  }
+
+  const profiles = obj.profiles;
+  if (!profiles || typeof profiles !== "object") {
+    return undefined;
+  }
+
+  const profileMap = profiles as Record<string, unknown>;
+  const preferred = profileMap["openai-codex:default"];
+  if (preferred && typeof preferred === "object") {
+    const preferredToken = pickTokenFromRecord(preferred as Record<string, unknown>);
+    if (preferredToken) {
+      return preferredToken;
+    }
+  }
+
+  for (const value of Object.values(profileMap)) {
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+    const token = pickTokenFromRecord(value as Record<string, unknown>);
+    if (token) {
+      return token;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveCodexAccessToken(config: MemoryConfig): string {
   const explicit = config.embedding.oauthToken;
   if (explicit) {
@@ -221,44 +303,13 @@ function resolveCodexAccessToken(config: MemoryConfig): string {
     throw new Error("Failed to read Codex auth file at " + authPath + ": " + String(err));
   }
 
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Invalid Codex auth file at " + authPath);
-  }
-
-  const obj = parsed as Record<string, unknown>;
-  const direct = obj.access_token;
-  if (typeof direct === "string" && direct.length > 0) {
-    return direct;
-  }
-
-  const profiles = obj.profiles;
-  if (profiles && typeof profiles === "object") {
-    const pObj = profiles as Record<string, unknown>;
-    const preferred = pObj["openai-codex:default"] as Record<string, unknown> | undefined;
-    const preferredAccess = preferred?.access;
-    if (typeof preferredAccess === "string" && preferredAccess.length > 0) {
-      return preferredAccess;
-    }
-    for (const v of Object.values(pObj)) {
-      if (v && typeof v === "object") {
-        const access = (v as Record<string, unknown>).access;
-        if (typeof access === "string" && access.length > 0) {
-          return access;
-        }
-      }
-    }
-  }
-
-  const fallbackKeys = ["accessToken", "token", "id_token", "access"];
-  for (const key of fallbackKeys) {
-    const value = obj[key];
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
+  const token = extractCodexAccessToken(parsed);
+  if (token) {
+    return token;
   }
 
   throw new Error(
-    "Codex auth file does not contain an access token (expected Codex auth.json or OpenClaw auth-profiles format): " + authPath,
+    "Codex auth file does not contain an access token (expected Codex auth.json/OpenClaw profiles with access_token/accessToken/token fields): " + authPath,
   );
 }
 

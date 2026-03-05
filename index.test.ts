@@ -260,6 +260,24 @@ describe("memory plugin e2e", () => {
     expect(looksLikePromptInjection("I prefer concise replies")).toBe(false);
   });
 
+  test("extractCodexAccessToken supports common Codex/OpenClaw auth shapes", async () => {
+    const { extractCodexAccessToken } = await import("./index.js");
+
+    expect(extractCodexAccessToken({ access_token: "tok-1" })).toBe("tok-1");
+    expect(extractCodexAccessToken({ accessToken: "tok-2" })).toBe("tok-2");
+    expect(extractCodexAccessToken({ profiles: { "openai-codex:default": { access: "tok-3" } } })).toBe("tok-3");
+    expect(extractCodexAccessToken({ profiles: { alt: { tokens: { access_token: "tok-4" } } } })).toBe("tok-4");
+    expect(
+      extractCodexAccessToken({ credentials: { openai: { accessToken: "tok-5" } } }),
+    ).toBe("tok-5");
+  });
+
+  test("extractCodexAccessToken returns undefined when token missing", async () => {
+    const { extractCodexAccessToken } = await import("./index.js");
+    expect(extractCodexAccessToken({ profiles: { default: { name: "none" } } })).toBeUndefined();
+    expect(extractCodexAccessToken(null)).toBeUndefined();
+  });
+
   test("detectCategory classifies using production logic", async () => {
     const { detectCategory } = await import("./index.js");
 
