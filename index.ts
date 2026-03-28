@@ -22,6 +22,13 @@ import {
   type MemoryConfig,
 } from "./config.js";
 
+
+// ============================================================================
+// Registration Guard (workaround for openclaw re-registration bug #56522)
+// ============================================================================
+
+let _registered = false;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -438,6 +445,12 @@ const memoryPlugin = {
   configSchema: memoryConfigSchema,
 
   register(api: OpenClawPluginApi) {
+    if (_registered) {
+      api.logger.info("memory-lancedb: skipping duplicate registration");
+      return;
+    }
+    _registered = true;
+
     const cfg = memoryConfigSchema.parse(api.pluginConfig);
     const resolvedDbPath = api.resolvePath(cfg.dbPath!);
     const vectorDim = vectorDimsForModel(cfg.embedding.provider, cfg.embedding.model!);
