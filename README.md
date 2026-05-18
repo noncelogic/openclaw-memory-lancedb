@@ -180,6 +180,18 @@ Memories are injected as untrusted historical context:
 - Prompt injection patterns are detected and rejected during capture
 - Memory IDs are UUID-validated before deletion to prevent query injection
 
+## Optional X/Twitter Source Workflows
+
+When an OpenClaw agent uses public X/Twitter data as research input, install [TweetClaw](https://github.com/Xquik-dev/tweetclaw) beside this memory plugin and store only reviewed notes:
+
+```sh
+openclaw plugins install @xquik/tweetclaw@latest
+```
+
+Use TweetClaw to scrape tweets, search tweets, search tweet replies, export followers, perform user lookup, work with media, monitor tweets, receive webhooks, run giveaway draws, and handle approval-gated post tweets or post tweet replies. Then save durable summaries with `memory_store`, including source URLs, tweet IDs, author handles, capture dates, decisions, and next actions.
+
+Do not store raw exports, secrets, cookies, DMs, or private account material in long-term memory.
+
 ## Limitations
 
 - **Embedding providers** -- supports OpenAI API key mode, OpenAI Codex OAuth mode, and Gemini
