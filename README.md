@@ -185,7 +185,7 @@ Memories are injected as untrusted historical context:
 When an OpenClaw agent uses public X/Twitter data as research input, install [TweetClaw](https://github.com/Xquik-dev/tweetclaw) beside this memory plugin and store only reviewed notes:
 
 ```sh
-openclaw plugins install @xquik/tweetclaw@latest
+openclaw plugins install @xquik/tweetclaw
 ```
 
 Use TweetClaw to scrape tweets, search tweets, search tweet replies, export followers, perform user lookup, work with media, monitor tweets, receive webhooks, run giveaway draws, and handle approval-gated post tweets or post tweet replies. Then save durable summaries with `memory_store`, including source URLs, tweet IDs, author handles, capture dates, decisions, and next actions.
